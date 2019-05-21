@@ -1,12 +1,17 @@
-//  Created by Umut Avin on 12.05.2019.
-//  Copyright © 2019 avin. All rights reserved.
+//  Umut Cem Avin
+//  150140018
+//  Compile command: g++ 150140018.cpp -o project -std=c++11
+//  Running command: ./project inputfile_name outputfile_name(optional)
+
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <vector>
-#include <string.h>
+#include <string>
 #include <queue>
+#include <limits.h> 
+
 
 using namespace std;
 
@@ -16,21 +21,28 @@ class League {
     vector<int> points;
     vector< vector<int> > matches;
     vector< vector<int> > residualGraph;
-    bool bfs(vector< vector<int> >& graph, int s, int t, vector<int>& path);
+    bool bfs(vector< vector<int> >& graph, int s, int t, vector<int>& path) const;
     int fordFulkerson(int s, int t, int size);
 };
 
-bool League::bfs(vector< vector<int> >& graph, int s, int t, vector<int>& path){
-    vector<bool> visited(this->size,false); // Initial value is false
+/*
+Standard BFS function to check if there is a path between source and sink.
+Graph is searched by placing visited flags and path is saved inside of the path vector.
+*/
+bool League::bfs(vector< vector<int> >& graph, int s, int t, vector<int>& path) const{
+    //Create a visited array full of 0 boolean values.
+    bool visited[this->size];
+    for(int i=0; i<this->size; i++){
+        visited[i]=false;
+    }
     queue<int> bfsQueue;
-    visited[s] = true; // Mark source as explored.
     bfsQueue.push(s);
+    visited[s] = true; //Visited flag for source
     
     while (!bfsQueue.empty() && !visited[t]) {
         int u = bfsQueue.front();
         bfsQueue.pop();
         
-        // Check all shops can be explored from the popped shop.
         for (int i = 0; i < this->size && !visited[t]; i++) {
             if (!visited[i] && graph[u][i]>0) {
                 bfsQueue.push(i);
@@ -39,65 +51,72 @@ bool League::bfs(vector< vector<int> >& graph, int s, int t, vector<int>& path){
             }
         }
     }
-    
-    // Return the sink flag. It will be true if sink has been explored,
-    // therefore there is a path between source and sink.
     return visited[t];
 }
 
-int League::fordFulkerson(int s, int t, int size) 
-{ 
+/*
+Return maximum flow from source to sink if there is a path between them
+*/
+int League::fordFulkerson(int s, int t, int size){ 
 	int u, v; 
-
-	// Create a residual graph and fill the residual graph with 
-	// given capacities in the original graph as residual capacities 
-	// in residual graph 
 	this->residualGraph.resize(size);
     for(int i=0; i<size; i++){
         this->residualGraph[i].resize(size);
 
     }
-	for (u = 0; u < size; u++) 
-		for (v = 0; v < size; v++) 
+    //Create residualGraph from the main graph
+	for (u = 0; u < size; u++){
+		for (v = 0; v < size; v++){
 			this->residualGraph[u][v] = this->matches[u][v] ; 
-
+        }
+    }
     vector<int> path;
-	int max_flow = 0; // There is no flow initially 
+    path.resize(size);
+	int maxFlow = 0;  
 
-	// Augment the flow while tere is path from source to sink 
+    //Check repeatedly if there is a path between source to sink and update the edges
 	while (bfs(this->residualGraph, s, t, path)) 
 	{ 
-		// Find minimum residual capacity of the edges along the 
-		// path filled by BFS. Or we can say find the maximum flow 
-		// through the path found. 
-		int path_flow = INT_MAX; 
+
+		int pathFlow = INT_MAX; 
 		for (v=t; v!=s; v=path[v]) 
 		{ 
 			u = path[v]; 
-			path_flow = min(path_flow, this->residualGraph[u][v]); 
+            if(pathFlow > this->residualGraph[u][v])
+			    pathFlow = this->residualGraph[u][v]; 
 		} 
 
-		// update residual capacities of the edges and reverse edges 
-		// along the path 
+		//Change residual graph according to pathFlow 
 		for (v=t; v != s; v=path[v]) 
 		{ 
 			u = path[v]; 
-			this->residualGraph[u][v] -= path_flow; 
-			this->residualGraph[v][u] += path_flow; 
+			this->residualGraph[u][v] -= pathFlow; 
+			this->residualGraph[v][u] += pathFlow; 
 		} 
 
-		// Add path flow to overall flow 
-		max_flow += path_flow; 
+		maxFlow += pathFlow; 
 	} 
 
-	// Return the overall flow 
-	return max_flow; 
+	return maxFlow; 
 } 
 
 
-int main(){
-    ifstream inputFile("input1.txt", ifstream::in);
-    
+int main(int argc, const char * argv[]){
+    if(argc<2){
+        cout << "Missing arguements!" << endl;
+        return 0;
+    }
+    string output;
+    if(argc==3){
+        output = argv[2];
+    }
+    if(argc==2){
+        output = "output.txt";
+    }
+    string fileName = argv[1];
+
+
+    ifstream inputFile(fileName, ifstream::in); //Open input text file
     if (!inputFile.is_open()) {
         cout << endl << "File cannot be loaded!" << endl;
         return 0;
@@ -107,10 +126,12 @@ int main(){
     string line;
     int N=0;
 
+    //Read size
     getline(inputFile, line);
     N = stoi(line);
     league.size = N;
 
+    //Read current points
     getline(inputFile, line);
     stringstream ss(line);
     string point;
@@ -122,9 +143,9 @@ int main(){
         score = stoi(point);
         league.points.push_back(score);
     }
-    int array[N][N];
-    league.matches.resize(N);
 
+    //Read fixture
+    league.matches.resize(N);
     for(int i=0; i<N; i++){
         getline(inputFile, line);
         stringstream ss2(line);
@@ -138,25 +159,26 @@ int main(){
         }
     }
 
-    inputFile.close();
-
-    cout << "max flow is: " << league.fordFulkerson(0, N-1, N);
-
-
-
-    // for(int i=0; i<N; i++){
-    //     cout << league.points[i] << " ";
-    // }
-    // cout << endl;
-
-    // for(int i=0; i<N; i++){
-    //     for(int j=0; j<N; j++){
-    //         cout << league.matches[i][j] << " ";
-    //     }
-    //     cout << endl;
-    // }
-
+    inputFile.close(); //Close file
     
+    
+    ofstream outputFile(output, ofstream::out);
 
+
+    //Check if there is a possibility to win the league for teams
+    int cnt=0;
+    int maxFlow = league.fordFulkerson(0, N-1, N);
+    for(int i=0; i<N; i++){
+        cnt = 0;
+        for(int j=0; j<N; j++){
+            if((league.points[i] + maxFlow)>league.points[j])
+                cnt++;
+        }
+        if(cnt==N)
+            outputFile << "1 ";
+        else
+            outputFile << "0 ";
+    }
+    outputFile.close();
     return 0;
 }
